@@ -1,0 +1,2139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Yoga Pose Optimiser</title>
+
+<!-- MediaPipe Pose -->
+<script
+    src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"
+    crossorigin="anonymous"
+    onerror="window.__poseLibraryFailed = true">
+</script>
+
+<!-- Three.js + OrbitControls -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<style>
+/* =========================================================
+   RESET & CORE
+========================================================= */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg: #080b10;
+    --panel: #0e131a;
+    --panel-2: #111821;
+    --border: #202a36;
+    --text: #f4f7fb;
+    --muted: #8d99a8;
+
+    --green: #31e981;
+    --green-soft: rgba(49,233,129,.13);
+
+    --yellow: #f4c95d;
+    --yellow-soft: rgba(244,201,93,.13);
+
+    --red: #ff5c68;
+    --red-soft: rgba(255,92,104,.13);
+
+    --blue: #69a7ff;
+    --blue-soft: rgba(105,167,255,.13);
+
+    --radius: 18px;
+}
+
+html, body {
+    width: 100%;
+    min-height: 100%;
+}
+
+body {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+}
+
+button {
+    font: inherit;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.app {
+    min-height: 100vh;
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+.header {
+    height: 72px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    background: rgba(8,11,16,.92);
+    backdrop-filter: blur(14px);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: var(--green-soft);
+    border: 1px solid rgba(49,233,129,.35);
+    display: grid;
+    place-items: center;
+    color: var(--green);
+    font-size: 20px;
+}
+
+.brand-title {
+    font-weight: 800;
+    letter-spacing: -.4px;
+}
+
+.brand-subtitle {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+}
+
+.status-pill.live .status-dot {
+    background: var(--green);
+    box-shadow: 0 0 10px rgba(49,233,129,.7);
+}
+
+/* =========================================================
+   LANDING
+========================================================= */
+.landing {
+    min-height: calc(100vh - 72px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+}
+
+.landing-inner {
+    width: min(1100px, 100%);
+}
+
+.hero {
+    text-align: center;
+    max-width: 820px;
+    margin: auto;
+}
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--green);
+    background: var(--green-soft);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.hero h1 {
+    margin-top: 22px;
+    font-size: clamp(42px, 7vw, 76px);
+    line-height: .98;
+    letter-spacing: -4px;
+}
+
+.hero h1 span {
+    color: var(--green);
+}
+
+.hero p {
+    max-width: 680px;
+    margin: 24px auto 0;
+    color: var(--muted);
+    line-height: 1.7;
+    font-size: 16px;
+}
+
+.pose-picker {
+    margin-top: 48px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+}
+
+.pose-card {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 20px 12px;
+    cursor: pointer;
+    transition: .2s ease;
+    text-align: left;
+}
+
+.pose-card:hover {
+    border-color: #344353;
+    transform: translateY(-2px);
+}
+
+.pose-card.active {
+    border-color: var(--green);
+    background: var(--green-soft);
+}
+
+.pose-icon {
+    font-size: 28px;
+    margin-bottom: 16px;
+}
+
+.pose-name {
+    font-weight: 750;
+    font-size: 14px;
+}
+
+.pose-description {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 5px;
+    line-height: 1.4;
+}
+
+.start-area {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.primary-btn {
+    border: 0;
+    background: var(--green);
+    color: #031108;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+.primary-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
+}
+
+.secondary-btn {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    padding: 12px 18px;
+    border-radius: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.secondary-btn:hover {
+    border-color: #3a4756;
+}
+
+.features {
+    margin-top: 50px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.feature {
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: rgba(14,19,26,.7);
+}
+
+.feature-title {
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.feature-text {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+/* =========================================================
+   PRACTICE
+========================================================= */
+.practice {
+    padding: 22px;
+    max-width: 1500px;
+    margin: auto;
+}
+
+.practice-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.pose-heading {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.pose-heading span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(300px, .7fr);
+    gap: 16px;
+}
+
+/* =========================================================
+   CAMERA
+========================================================= */
+.camera-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.camera-header {
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.camera-title {
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.camera-status {
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.camera-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #020407;
+    overflow: hidden;
+}
+
+.camera-stage video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+
+.camera-stage canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    transform: scaleX(-1);
+}
+
+.camera-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.calibration-box {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(55%, 380px);
+    height: 82%;
+    border: 1px dashed rgba(255,255,255,.25);
+    border-radius: 22px;
+}
+
+.calibration-text {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 13px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.65);
+    backdrop-filter: blur(8px);
+    font-size: 12px;
+    color: #fff;
+}
+
+.camera-bottom {
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.camera-tip {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.camera-confidence {
+    min-width: 130px;
+}
+
+.confidence-label {
+    display: flex;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 10px;
+    margin-bottom: 6px;
+}
+
+.progress {
+    height: 5px;
+    background: #1b232d;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--green);
+    transition: width .25s ease;
+}
+
+/* =========================================================
+   SIDE PANEL
+========================================================= */
+.side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.score-card,
+.reference-card,
+.feedback-card,
+.stats-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.score-card {
+    padding: 18px;
+}
+
+.score-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 750;
+}
+
+.score-ring {
+    width: 120px;
+    height: 120px;
+    margin: 20px auto;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    position: relative;
+    background: conic-gradient(var(--green) 0deg, var(--green) 0deg, #1a232d 0deg);
+}
+
+.score-ring::before {
+    content: "";
+    position: absolute;
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    background: var(--panel);
+}
+
+.score-value {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+}
+
+.score-number {
+    font-size: 30px;
+    font-weight: 850;
+    letter-spacing: -1px;
+}
+
+.score-unit {
+    font-size: 10px;
+    color: var(--muted);
+}
+
+.score-state {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.score-state.good { color: var(--green); }
+.score-state.warning { color: var(--yellow); }
+.score-state.bad { color: var(--red); }
+
+/* =========================================================
+   REFERENCE 3D CARD
+========================================================= */
+.reference-card {
+    padding: 14px;
+}
+
+.reference-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.reference-note {
+    font-size: 10px;
+    color: var(--muted);
+}
+
+.reference-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    border-radius: 14px;
+    background: radial-gradient(circle at center, rgba(49,233,129,.07), transparent 65%), #0a0f15;
+    overflow: hidden;
+}
+
+#referenceCanvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    cursor: grab;
+}
+
+#referenceCanvas:active {
+    cursor: grabbing;
+}
+
+.reference-caption {
+    position: absolute;
+    left: 12px;
+    bottom: 10px;
+    padding: 6px 9px;
+    border-radius: 7px;
+    background: rgba(0,0,0,.65);
+    backdrop-filter: blur(4px);
+    color: var(--muted);
+    font-size: 10px;
+    pointer-events: none;
+}
+
+/* =========================================================
+   FEEDBACK & STATS
+========================================================= */
+.feedback-card {
+    padding: 16px;
+}
+
+.feedback-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.feedback-item {
+    padding: 10px 11px;
+    border-radius: 10px;
+    background: var(--red-soft);
+    color: #ffd5d8;
+    font-size: 11px;
+    line-height: 1.45;
+    border-left: 3px solid var(--red);
+}
+
+.feedback-item.good {
+    background: var(--green-soft);
+    border-left-color: var(--green);
+    color: #c9ffe0;
+}
+
+.feedback-item.warning {
+    background: var(--yellow-soft);
+    border-left-color: var(--yellow);
+    color: #fff0bd;
+}
+
+.stats-card {
+    padding: 14px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.stat {
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--panel-2);
+}
+
+.stat-value {
+    font-size: 17px;
+    font-weight: 800;
+}
+
+.stat-label {
+    color: var(--muted);
+    font-size: 9px;
+    margin-top: 3px;
+}
+
+.feedback-bar {
+    margin-top: 16px;
+    min-height: 70px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+}
+
+.feedback-indicator {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    background: var(--green-soft);
+    color: var(--green);
+}
+
+.feedback-main {
+    min-width: 0;
+}
+
+.feedback-title {
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.feedback-message {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* =========================================================
+   SUMMARY MODAL
+========================================================= */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.76);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+}
+
+.summary {
+    width: min(520px, 100%);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 28px;
+}
+
+.summary-header { text-align: center; }
+.summary-header h2 { font-size: 25px; }
+.summary-header p { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+.summary-score {
+    text-align: center;
+    margin: 28px 0;
+}
+
+.summary-score strong {
+    font-size: 64px;
+    letter-spacing: -4px;
+}
+
+.summary-score span {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.summary-stat {
+    padding: 15px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.summary-stat-value {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.summary-stat-label {
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 3px;
+}
+
+.summary-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+}
+
+.summary-actions button {
+    flex: 1;
+}
+
+/* =========================================================
+   LOADING & ERROR
+========================================================= */
+.loading {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: #080b10;
+    display: grid;
+    place-items: center;
+}
+
+.loading-box { text-align: center; }
+
+.loader {
+    width: 38px;
+    height: 38px;
+    margin: auto;
+    border: 3px solid #1c2631;
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    margin-top: 16px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.loading-sub {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.error-box {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 300;
+    width: min(500px, calc(100% - 30px));
+    background: #171014;
+    border: 1px solid rgba(255,92,104,.4);
+    border-radius: 13px;
+    padding: 14px;
+    display: none;
+}
+
+.error-title {
+    color: var(--red);
+    font-weight: 800;
+    font-size: 12px;
+}
+
+.error-message {
+    color: #ffd9dc;
+    font-size: 11px;
+    line-height: 1.5;
+    margin-top: 5px;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+@media (max-width: 1050px) {
+    .pose-picker { grid-template-columns: repeat(3, 1fr); }
+    .workspace { grid-template-columns: 1fr; }
+    .side-panel { display: grid; grid-template-columns: repeat(2, 1fr); }
+    .feedback-card, .stats-card { grid-column: 1 / -1; }
+}
+
+@media (max-width: 700px) {
+    .header { padding: 0 14px; }
+    .brand-subtitle { display: none; }
+    .landing { padding: 35px 15px; }
+    .hero h1 { letter-spacing: -2px; }
+    .pose-picker { grid-template-columns: repeat(2, 1fr); }
+    .features { grid-template-columns: 1fr; }
+    .practice { padding: 12px; }
+    .practice-toolbar { align-items: flex-start; gap: 10px; flex-direction: column; }
+    .side-panel { display: flex; }
+    .camera-bottom { grid-template-columns: 1fr; }
+    .feedback-bar { align-items: flex-start; }
+    .header-right .status-pill:last-child { display: none; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOADING -->
+<div class="loading hidden" id="loadingScreen">
+    <div class="loading-box">
+        <div class="loader"></div>
+        <div class="loading-text" id="loadingText">Starting Yoga Pose Optimiser</div>
+        <div class="loading-sub">Loading real-time pose detection...</div>
+    </div>
+</div>
+
+<!-- ERROR -->
+<div class="error-box" id="errorBox">
+    <div class="error-title">Something went wrong</div>
+    <div class="error-message" id="errorMessage"></div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="brand">
+        <div class="brand-icon">🧘</div>
+        <div>
+            <div class="brand-title">Yoga Pose Optimiser</div>
+            <div class="brand-subtitle">Real-time posture analysis & 3D reference</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="status-pill" id="modelStatus">
+            <span class="status-dot"></span>
+            <span id="modelStatusText">AI ready</span>
+        </div>
+        <div class="status-pill" id="cameraStatusPill">
+            <span class="status-dot"></span>
+            <span id="cameraStatusText">Camera off</span>
+        </div>
+    </div>
+</header>
+
+<!-- LANDING -->
+<section class="landing" id="landingScreen">
+    <div class="landing-inner">
+        <div class="hero">
+            <div class="hero-badge">● LIVE POSE ANALYSIS & 3D MODEL</div>
+            <h1>Improve your <span>yoga posture.</span></h1>
+            <p>
+                Use your webcam to track 33 body landmarks, analyse joint angles,
+                receive live corrections, and compare against an interactive 3D model.
+            </p>
+        </div>
+
+        <div class="pose-picker" id="posePicker">
+            <div class="pose-card active" data-pose="warrior2">
+                <div class="pose-icon">⚔️</div>
+                <div class="pose-name">Warrior II</div>
+                <div class="pose-description">Leg alignment & horizontal arms</div>
+            </div>
+            <div class="pose-card" data-pose="tree">
+                <div class="pose-icon">🌳</div>
+                <div class="pose-name">Tree</div>
+                <div class="pose-description">Balance & standing leg</div>
+            </div>
+            <div class="pose-card" data-pose="mountain">
+                <div class="pose-icon">⛰️</div>
+                <div class="pose-name">Mountain</div>
+                <div class="pose-description">Alignment & posture</div>
+            </div>
+            <div class="pose-card" data-pose="downward">
+                <div class="pose-icon">🐕</div>
+                <div class="pose-name">Downward Dog</div>
+                <div class="pose-description">Back, hip & leg alignment</div>
+            </div>
+            <div class="pose-card" data-pose="chair">
+                <div class="pose-icon">🪑</div>
+                <div class="pose-name">Chair</div>
+                <div class="pose-description">Knee & hip alignment</div>
+            </div>
+        </div>
+
+        <div class="start-area">
+            <button class="primary-btn" id="startButton">Start Camera →</button>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-title">Real body tracking</div>
+                <div class="feature-text">Your webcam is analysed directly in the browser via MediaPipe.</div>
+            </div>
+            <div class="feature">
+                <div class="feature-title">Interactive 3D Mannequin</div>
+                <div class="feature-text">Drag and rotate the 3D target figure to inspect alignment from any angle.</div>
+            </div>
+            <div class="feature">
+                <div class="feature-title">Real-time hold metrics</div>
+                <div class="feature-text">Track your streak, accuracy scores, and hold duration automatically.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PRACTICE -->
+<section class="practice hidden" id="practiceScreen">
+    <div class="practice-toolbar">
+        <div>
+            <div class="pose-heading">
+                <span id="selectedPoseName">Warrior II</span>
+                <span>live session</span>
+            </div>
+        </div>
+        <div class="toolbar-actions">
+            <button class="secondary-btn" id="resetButton">Reset</button>
+            <button class="secondary-btn" id="stopButton">Stop Practice</button>
+        </div>
+    </div>
+
+    <div class="workspace">
+        <!-- CAMERA -->
+        <div class="camera-panel">
+            <div class="camera-header">
+                <div class="camera-title">Live camera</div>
+                <div class="camera-status" id="cameraStatus">Initialising...</div>
+            </div>
+            <div class="camera-stage" id="cameraStage">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="poseCanvas"></canvas>
+                <div class="camera-overlay">
+                    <div class="calibration-box" id="calibrationBox"></div>
+                    <div class="calibration-text" id="calibrationText">Stand inside the frame</div>
+                </div>
+            </div>
+            <div class="camera-bottom">
+                <div class="camera-tip" id="cameraTip">Position your full body inside the frame.</div>
+                <div class="camera-confidence">
+                    <div class="confidence-label">
+                        <span>Body detection</span>
+                        <span id="confidenceValue">0%</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-fill" id="confidenceBar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIDE PANEL -->
+        <div class="side-panel">
+            <!-- SCORE -->
+            <div class="score-card">
+                <div class="score-top">
+                    <div class="card-label">Pose accuracy</div>
+                    <div class="card-label" id="scorePoseLabel">Warrior II</div>
+                </div>
+                <div class="score-ring" id="scoreRing">
+                    <div class="score-value">
+                        <div class="score-number" id="scoreNumber">--</div>
+                        <div class="score-unit">/ 100</div>
+                    </div>
+                </div>
+                <div class="score-state" id="scoreState">Waiting for pose</div>
+            </div>
+
+            <!-- 3D REFERENCE -->
+            <div class="reference-card">
+                <div class="reference-head">
+                    <div class="card-label">3D Reference Pose</div>
+                    <div class="reference-note">drag to rotate 3D view</div>
+                </div>
+                <div class="reference-stage" id="referenceStage">
+                    <canvas id="referenceCanvas"></canvas>
+                    <div class="reference-caption">Match this 3D model</div>
+                </div>
+            </div>
+
+            <!-- FEEDBACK -->
+            <div class="feedback-card">
+                <div class="card-label">Corrections</div>
+                <div class="feedback-list" id="feedbackList">
+                    <div class="feedback-item good">Waiting for your body to be detected.</div>
+                </div>
+            </div>
+
+            <!-- STATS -->
+            <div class="stats-card">
+                <div class="stat">
+                    <div class="stat-value" id="holdTime">0:00</div>
+                    <div class="stat-label">Current hold</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="bestHold">0:00</div>
+                    <div class="stat-label">Best hold</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="correctionCount">0</div>
+                    <div class="stat-label">Corrections</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM FEEDBACK BAR -->
+    <div class="feedback-bar">
+        <div class="feedback-indicator" id="feedbackIndicator">✓</div>
+        <div class="feedback-main">
+            <div class="feedback-title" id="feedbackTitle">Get ready</div>
+            <div class="feedback-message" id="feedbackMessage">Stand where your full body is visible.</div>
+        </div>
+    </div>
+</section>
+
+<!-- SUMMARY MODAL -->
+<div class="modal hidden" id="summaryModal">
+    <div class="summary">
+        <div class="summary-header">
+            <h2>Session complete</h2>
+            <p id="summaryPose">Warrior II</p>
+        </div>
+        <div class="summary-score">
+            <strong id="summaryScore">0</strong>
+            <span>average accuracy</span>
+        </div>
+        <div class="summary-grid">
+            <div class="summary-stat">
+                <div class="summary-stat-value" id="summaryBest">0:00</div>
+                <div class="summary-stat-label">Best hold</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-stat-value" id="summaryCorrections">0</div>
+                <div class="summary-stat-label">Corrections</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-stat-value" id="summaryDuration">0:00</div>
+                <div class="summary-stat-label">Session time</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-stat-value" id="summaryPeak">0</div>
+                <div class="summary-stat-label">Peak accuracy</div>
+            </div>
+        </div>
+        <div class="summary-actions">
+            <button class="secondary-btn" id="summaryClose">Back</button>
+            <button class="primary-btn" id="summaryRestart">Practice Again</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* =========================================================
+   DOM ELEMENTS
+========================================================= */
+const landingScreen = document.getElementById("landingScreen");
+const practiceScreen = document.getElementById("practiceScreen");
+const loadingScreen = document.getElementById("loadingScreen");
+const loadingText = document.getElementById("loadingText");
+const errorBox = document.getElementById("errorBox");
+const errorMessage = document.getElementById("errorMessage");
+
+const startButton = document.getElementById("startButton");
+const stopButton = document.getElementById("stopButton");
+const resetButton = document.getElementById("resetButton");
+
+const video = document.getElementById("video");
+const poseCanvas = document.getElementById("poseCanvas");
+const poseCtx = poseCanvas.getContext("2d");
+
+const referenceCanvas = document.getElementById("referenceCanvas");
+const referenceStage = document.getElementById("referenceStage");
+
+const selectedPoseName = document.getElementById("selectedPoseName");
+const scorePoseLabel = document.getElementById("scorePoseLabel");
+const scoreNumber = document.getElementById("scoreNumber");
+const scoreState = document.getElementById("scoreState");
+const scoreRing = document.getElementById("scoreRing");
+
+const feedbackList = document.getElementById("feedbackList");
+const feedbackTitle = document.getElementById("feedbackTitle");
+const feedbackMessage = document.getElementById("feedbackMessage");
+const feedbackIndicator = document.getElementById("feedbackIndicator");
+
+const holdTimeElement = document.getElementById("holdTime");
+const bestHoldElement = document.getElementById("bestHold");
+const correctionCountElement = document.getElementById("correctionCount");
+
+const confidenceValue = document.getElementById("confidenceValue");
+const confidenceBar = document.getElementById("confidenceBar");
+
+const calibrationBox = document.getElementById("calibrationBox");
+const calibrationText = document.getElementById("calibrationText");
+const cameraStatus = document.getElementById("cameraStatus");
+const cameraStatusPill = document.getElementById("cameraStatusPill");
+const cameraStatusText = document.getElementById("cameraStatusText");
+const modelStatus = document.getElementById("modelStatus");
+const modelStatusText = document.getElementById("modelStatusText");
+const cameraTip = document.getElementById("cameraTip");
+
+const summaryModal = document.getElementById("summaryModal");
+const summaryPose = document.getElementById("summaryPose");
+const summaryScore = document.getElementById("summaryScore");
+const summaryBest = document.getElementById("summaryBest");
+const summaryCorrections = document.getElementById("summaryCorrections");
+const summaryDuration = document.getElementById("summaryDuration");
+const summaryPeak = document.getElementById("summaryPeak");
+const summaryClose = document.getElementById("summaryClose");
+const summaryRestart = document.getElementById("summaryRestart");
+
+/* =========================================================
+   LANDMARK CONSTANTS & CONNECTIONS
+========================================================= */
+const LM = {
+    NOSE: 0,
+    LEFT_EYE: 2, RIGHT_EYE: 5,
+    LEFT_SHOULDER: 11, RIGHT_SHOULDER: 12,
+    LEFT_ELBOW: 13, RIGHT_ELBOW: 14,
+    LEFT_WRIST: 15, RIGHT_WRIST: 16,
+    LEFT_HIP: 23, RIGHT_HIP: 24,
+    LEFT_KNEE: 25, RIGHT_KNEE: 26,
+    LEFT_ANKLE: 27, RIGHT_ANKLE: 28,
+    LEFT_HEEL: 29, RIGHT_HEEL: 30,
+    LEFT_FOOT: 31, RIGHT_FOOT: 32
+};
+
+const CONNECTIONS = [
+    [0, 1], [1, 2], [2, 3], [3, 7],
+    [0, 4], [4, 5], [5, 6], [6, 8],
+    [9, 10], [11, 12],
+    [11, 13], [13, 15],
+    [12, 14], [14, 16],
+    [11, 23], [12, 24],
+    [23, 24],
+    [23, 25], [25, 27],
+    [24, 26], [26, 28],
+    [27, 29], [29, 31],
+    [28, 30], [30, 32],
+    [15, 17], [15, 19], [15, 21],
+    [16, 18], [16, 20], [16, 22],
+    [27, 31], [28, 32]
+];
+
+const POSES = {
+    warrior2: { name: "Warrior II", description: "Strong legs, open hips and horizontal arms." },
+    tree: { name: "Tree", description: "Balance on one leg with the other foot raised." },
+    mountain: { name: "Mountain", description: "Neutral standing alignment." },
+    downward: { name: "Downward Dog", description: "Inverted V with long spine and straight limbs." },
+    chair: { name: "Chair", description: "Bent knees, active hips and raised arms." }
+};
+
+/* =========================================================
+   APPLICATION STATE
+========================================================= */
+let selectedPose = "warrior2";
+let poseModel = null;
+let stream = null;
+let running = false;
+let detecting = false;
+let smoothLandmarks = null;
+let calibrationFrames = 0;
+const CALIBRATION_REQUIRED = 30;
+
+let currentScore = 0;
+let sessionStartedAt = 0;
+let holdStartedAt = null;
+let currentHoldSeconds = 0;
+let bestHoldSeconds = 0;
+let sessionScores = [];
+let peakScore = 0;
+let correctionCount = 0;
+let activeCorrections = new Set();
+let lastStatsSample = 0;
+let animationFrame = null;
+
+/* =========================================================
+   THREE.JS 3D REFERENCE ENGINE
+========================================================= */
+let threeScene, threeCamera, threeRenderer, threeControls;
+let mannequinJoints = {};
+let mannequinBones = [];
+let targetJointPositions = {};
+let currentJointPositions = {};
+
+const REF_BONES = [
+    [11, 12], // shoulders
+    [11, 13], [13, 15], // left arm
+    [12, 14], [14, 16], // right arm
+    [11, 23], [12, 24], // torso sides
+    [23, 24], // hips
+    [23, 25], [25, 27], // left leg
+    [24, 26], [26, 28], // right leg
+    [0, 11], [0, 12]    // neck/head support
+];
+
+// Normalized 3D Coordinates: Center at (0, 0, 0), Up is +Y
+const POSE_3D_TARGETS = {
+    mountain: {
+        0: [0, 1.68, 0],
+        11: [-0.35, 1.35, 0], 12: [0.35, 1.35, 0],
+        13: [-0.42, 0.95, 0], 14: [0.42, 0.95, 0],
+        15: [-0.44, 0.55, 0], 16: [0.44, 0.55, 0],
+        23: [-0.22, 0.58, 0], 24: [0.22, 0.58, 0],
+        25: [-0.22, 0.05, 0], 26: [0.22, 0.05, 0],
+        27: [-0.22, -0.65, 0], 28: [0.22, -0.65, 0]
+    },
+    warrior2: {
+        0: [0, 1.62, 0.08],
+        11: [-0.34, 1.32, 0], 12: [0.34, 1.32, 0],
+        13: [-0.75, 1.32, 0], 14: [0.75, 1.32, 0],
+        15: [-1.15, 1.32, 0], 16: [1.15, 1.32, 0],
+        23: [-0.24, 0.45, 0], 24: [0.24, 0.45, 0],
+        25: [-0.72, 0.38, 0.1], 26: [0.72, 0.05, -0.2],
+        27: [-0.72, -0.65, 0.1], 28: [1.15, -0.65, -0.2]
+    },
+    tree: {
+        0: [0, 1.68, 0],
+        11: [-0.35, 1.35, 0], 12: [0.35, 1.35, 0],
+        13: [-0.25, 1.75, 0.08], 14: [0.25, 1.75, 0.08],
+        15: [-0.08, 1.95, 0.12], 16: [0.08, 1.95, 0.12],
+        23: [-0.22, 0.58, 0], 24: [0.22, 0.58, 0],
+        25: [-0.22, 0.05, 0], 26: [0.48, 0.28, 0.18],
+        27: [-0.22, -0.65, 0], 28: [0.05, 0.05, 0.05]
+    },
+    downward: {
+        0: [-0.25, 0.42, 0],
+        11: [-0.45, 0.48, -0.24], 12: [-0.45, 0.48, 0.24],
+        13: [-0.72, 0.15, -0.24], 14: [-0.72, 0.15, 0.24],
+        15: [-0.98, -0.45, -0.24], 16: [-0.98, -0.45, 0.24],
+        23: [0.18, 1.05, -0.2], 24: [0.18, 1.05, 0.2],
+        25: [0.65, 0.45, -0.2], 26: [0.65, 0.45, 0.2],
+        27: [0.95, -0.45, -0.2], 28: [0.95, -0.45, 0.2]
+    },
+    chair: {
+        0: [-0.15, 1.55, 0],
+        11: [-0.38, 1.28, -0.2], 12: [-0.38, 1.28, 0.2],
+        13: [-0.55, 1.62, -0.2], 14: [-0.55, 1.62, 0.2],
+        15: [-0.75, 1.95, -0.2], 16: [-0.75, 1.95, 0.2],
+        23: [0.12, 0.35, -0.2], 24: [0.12, 0.35, 0.2],
+        25: [-0.25, 0.02, -0.2], 26: [-0.25, 0.02, 0.2],
+        27: [-0.22, -0.65, -0.2], 28: [-0.22, -0.65, 0.2]
+    }
+};
+
+function initThreeJS() {
+    if (threeScene) return;
+
+    const width = referenceStage.clientWidth || 320;
+    const height = referenceStage.clientHeight || 400;
+
+    threeScene = new THREE.Scene();
+    threeCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    threeCamera.position.set(0, 0.7, 3.8);
+
+    threeRenderer = new THREE.WebGLRenderer({
+        canvas: referenceCanvas,
+        alpha: true,
+        antialias: true
+    });
+    threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    threeRenderer.setSize(width, height);
+
+    threeControls = new THREE.OrbitControls(threeCamera, referenceRendererCanvasOrElement());
+    threeControls.enableDamping = true;
+    threeControls.dampingFactor = 0.08;
+    threeControls.maxDistance = 6.0;
+    threeControls.minDistance = 1.8;
+    threeControls.target.set(0, 0.6, 0);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+    threeScene.add(ambientLight);
+
+    const dirLight1 = new THREE.DirectionalLight(0x31e981, 1.2);
+    dirLight1.position.set(3, 5, 4);
+    threeScene.add(dirLight1);
+
+    const dirLight2 = new THREE.DirectionalLight(0x69a7ff, 0.6);
+    dirLight2.position.set(-3, -2, -3);
+    threeScene.add(dirLight2);
+
+    // Floor Grid
+    const grid = new THREE.GridHelper(3.2, 10, 0x31e981, 0x1f2c38);
+    grid.position.y = -0.7;
+    threeScene.add(grid);
+
+    // Materials
+    const jointMaterial = new THREE.MeshStandardMaterial({
+        color: 0x31e981,
+        roughness: 0.25,
+        metalness: 0.5,
+        emissive: 0x0f4023,
+        emissiveIntensity: 0.35
+    });
+
+    const boneMaterial = new THREE.MeshStandardMaterial({
+        color: 0xddffed,
+        roughness: 0.3,
+        metalness: 0.2
+    });
+
+    const headMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.3,
+        metalness: 0.1
+    });
+
+    // Create 3D Joint Meshes
+    const jointIndices = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+    jointIndices.forEach(idx => {
+        const radius = idx === 0 ? 0.13 : 0.055;
+        const geom = new THREE.SphereGeometry(radius, 24, 24);
+        const mesh = new THREE.Mesh(geom, idx === 0 ? headMaterial : jointMaterial);
+        threeScene.add(mesh);
+        mannequinJoints[idx] = mesh;
+    });
+
+    // Create 3D Bone Meshes
+    REF_BONES.forEach(([a, b]) => {
+        const geom = new THREE.CylinderGeometry(0.028, 0.028, 1, 16);
+        const mesh = new THREE.Mesh(geom, boneMaterial);
+        threeScene.add(mesh);
+        mannequinBones.push({ mesh, a, b });
+    });
+
+    setThreePoseTarget(selectedPose, true);
+    animateThree();
+}
+
+function referenceRendererCanvasOrElement() {
+    return referenceCanvas;
+}
+
+function setThreePoseTarget(poseKey, immediate = false) {
+    const coords = POSE_3D_TARGETS[poseKey] || POSE_3D_TARGETS.warrior2;
+    Object.keys(coords).forEach(idx => {
+        const target = new THREE.Vector3(...coords[idx]);
+        targetJointPositions[idx] = target;
+        if (immediate || !currentJointPositions[idx]) {
+            currentJointPositions[idx] = target.clone();
+        }
+    });
+}
+
+function updateBoneCylinder(cylinder, posA, posB) {
+    const dir = new THREE.Vector3().subVectors(posB, posA);
+    const len = dir.length();
+    cylinder.scale.set(1, len, 1);
+    cylinder.position.copy(posA).addScaledVector(dir, 0.5);
+
+    const up = new THREE.Vector3(0, 1, 0);
+    dir.normalize();
+    const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
+    cylinder.setRotationFromQuaternion(quat);
+}
+
+function animateThree() {
+    requestAnimationFrame(animateThree);
+
+    // Smoothly interpolate joints toward target coordinates
+    const lerpFactor = 0.12;
+    Object.keys(targetJointPositions).forEach(idx => {
+        if (currentJointPositions[idx] && targetJointPositions[idx]) {
+            currentJointPositions[idx].lerp(targetJointPositions[idx], lerpFactor);
+            if (mannequinJoints[idx]) {
+                mannequinJoints[idx].position.copy(currentJointPositions[idx]);
+            }
+        }
+    });
+
+    // Re-orient bones
+    mannequinBones.forEach(({ mesh, a, b }) => {
+        if (currentJointPositions[a] && currentJointPositions[b]) {
+            updateBoneCylinder(mesh, currentJointPositions[a], currentJointPositions[b]);
+        }
+    });
+
+    if (threeControls) threeControls.update();
+    if (threeRenderer && threeScene && threeCamera) {
+        threeRenderer.render(threeScene, threeCamera);
+    }
+}
+
+function resizeThree() {
+    if (!threeRenderer || !threeCamera) return;
+    const width = referenceStage.clientWidth;
+    const height = referenceStage.clientHeight;
+    if (width > 0 && height > 0) {
+        threeCamera.aspect = width / height;
+        threeCamera.updateProjectionMatrix();
+        threeRenderer.setSize(width, height);
+    }
+}
+
+/* =========================================================
+   POSE CALCULATION HELPERS
+========================================================= */
+function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+function average(a, b) { return (a + b) / 2; }
+function distance(a, b) {
+    if (!a || !b) return 999;
+    return Math.hypot(a.x - b.x, a.y - b.y);
+}
+function midpoint(a, b) {
+    return { x: average(a.x, b.x), y: average(a.y, b.y) };
+}
+
+function angle(a, b, c) {
+    if (!a || !b || !c) return NaN;
+    const abx = a.x - b.x, aby = a.y - b.y;
+    const cbx = c.x - b.x, cby = c.y - b.y;
+    const dot = abx * cbx + aby * cby;
+    const magAB = Math.hypot(abx, aby);
+    const magCB = Math.hypot(cbx, cby);
+    if (!magAB || !magCB) return NaN;
+    return Math.acos(clamp(dot / (magAB * magCB), -1, 1)) * 180 / Math.PI;
+}
+
+function horizontalAngle(a, b) {
+    if (!a || !b) return NaN;
+    let deg = Math.abs(Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI);
+    return deg > 90 ? 180 - deg : deg;
+}
+
+function verticalAngle(a, b) {
+    if (!a || !b) return NaN;
+    return Math.abs(Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI);
+}
+
+function rangeScore(value, min, max, tol) {
+    if (!Number.isFinite(value)) return 0;
+    if (value >= min && value <= max) return 1;
+    if (value < min) return clamp(1 - (min - value) / tol, 0, 1);
+    return clamp(1 - (value - max) / tol, 0, 1);
+}
+
+function maxScore(val, max, tol) {
+    if (!Number.isFinite(val)) return 0;
+    if (val <= max) return 1;
+    return clamp(1 - (val - max) / tol, 0, 1);
+}
+
+function minScore(val, min, tol) {
+    if (!Number.isFinite(val)) return 0;
+    if (val >= min) return 1;
+    return clamp(1 - (min - val) / tol, 0, 1);
+}
+
+function rangeCheck(id, label, points, measure, min, max, tol, weight, feedback) {
+    return {
+        id, label, points, weight,
+        evaluate(landmarks, ctx) {
+            const val = measure(landmarks, ctx);
+            return { value: val, score: rangeScore(val, min, max, tol), feedback: feedback(val, ctx) };
+        }
+    };
+}
+
+function maximumCheck(id, label, points, measure, max, tol, weight, feedback) {
+    return {
+        id, label, points, weight,
+        evaluate(landmarks, ctx) {
+            const val = measure(landmarks, ctx);
+            return { value: val, score: maxScore(val, max, tol), feedback: feedback(val, ctx) };
+        }
+    };
+}
+
+function minimumCheck(id, label, points, measure, min, tol, weight, feedback) {
+    return {
+        id, label, points, weight,
+        evaluate(landmarks, ctx) {
+            const val = measure(landmarks, ctx);
+            return { value: val, score: minScore(val, min, tol), feedback: feedback(val, ctx) };
+        }
+    };
+}
+
+function getWarriorContext(l) {
+    const leftKnee = angle(l[LM.LEFT_HIP], l[LM.LEFT_KNEE], l[LM.LEFT_ANKLE]);
+    const rightKnee = angle(l[LM.RIGHT_HIP], l[LM.RIGHT_KNEE], l[LM.RIGHT_ANKLE]);
+    const front = leftKnee <= rightKnee ? "left" : "right";
+    return { front, back: front === "left" ? "right" : "left" };
+}
+
+function getTreeContext(l) {
+    const leftY = l[LM.LEFT_ANKLE]?.y ?? 0;
+    const rightY = l[LM.RIGHT_ANKLE]?.y ?? 0;
+    const standing = leftY >= rightY ? "left" : "right";
+    return { standing, raised: standing === "left" ? "right" : "left" };
+}
+
+function sideIndexes(side) {
+    if (side === "left") {
+        return { shoulder: LM.LEFT_SHOULDER, elbow: LM.LEFT_ELBOW, wrist: LM.LEFT_WRIST, hip: LM.LEFT_HIP, knee: LM.LEFT_KNEE, ankle: LM.LEFT_ANKLE };
+    }
+    return { shoulder: LM.RIGHT_SHOULDER, elbow: LM.RIGHT_ELBOW, wrist: LM.RIGHT_WRIST, hip: LM.RIGHT_HIP, knee: LM.RIGHT_KNEE, ankle: LM.RIGHT_ANKLE };
+}
+
+/* =========================================================
+   POSE RULES
+========================================================= */
+function getChecks(poseKey, l) {
+    if (poseKey === "mountain") {
+        return [
+            rangeCheck("shoulders", "Shoulders level", [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER],
+                l => (Math.abs(l[LM.LEFT_SHOULDER].y - l[LM.RIGHT_SHOULDER].y) / (distance(l[LM.LEFT_SHOULDER], l[LM.RIGHT_SHOULDER]) || 0.1)) * 100,
+                0, 8, 12, 1, () => "Keep both shoulders level."),
+            rangeCheck("hips", "Hips level", [LM.LEFT_HIP, LM.RIGHT_HIP],
+                l => (Math.abs(l[LM.LEFT_HIP].y - l[LM.RIGHT_HIP].y) / (distance(l[LM.LEFT_HIP], l[LM.RIGHT_HIP]) || 0.1)) * 100,
+                0, 8, 12, 1, () => "Keep your hips level."),
+            rangeCheck("leftKnee", "Left knee", [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE],
+                l => angle(l[LM.LEFT_HIP], l[LM.LEFT_KNEE], l[LM.LEFT_ANKLE]), 165, 180, 25, 1, () => "Straighten your left knee."),
+            rangeCheck("rightKnee", "Right knee", [LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE],
+                l => angle(l[LM.RIGHT_HIP], l[LM.RIGHT_KNEE], l[LM.RIGHT_ANKLE]), 165, 180, 25, 1, () => "Straighten your right knee.")
+        ];
+    }
+    if (poseKey === "warrior2") {
+        return [
+            rangeCheck("frontKnee", "Front knee", c => [sideIndexes(c.front).hip, sideIndexes(c.front).knee, sideIndexes(c.front).ankle],
+                (l, c) => angle(l[sideIndexes(c.front).hip], l[sideIndexes(c.front).knee], l[sideIndexes(c.front).ankle]),
+                78, 108, 25, 1.7, (v, c) => `Bend your ${c.front} knee toward 90°.`),
+            rangeCheck("backKnee", "Back leg", c => [sideIndexes(c.back).hip, sideIndexes(c.back).knee, sideIndexes(c.back).ankle],
+                (l, c) => angle(l[sideIndexes(c.back).hip], l[sideIndexes(c.back).knee], l[sideIndexes(c.back).ankle]),
+                155, 180, 25, 1.2, (v, c) => `Straighten your ${c.back} back leg.`),
+            maximumCheck("armLevel", "Arms horizontal", [LM.LEFT_SHOULDER, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_WRIST],
+                l => Math.max(horizontalAngle(l[LM.LEFT_SHOULDER], l[LM.LEFT_WRIST]), horizontalAngle(l[LM.RIGHT_SHOULDER], l[LM.RIGHT_WRIST])),
+                12, 15, 1.3, () => "Extend both arms straight at shoulder height.")
+        ];
+    }
+    if (poseKey === "tree") {
+        return [
+            rangeCheck("standingKnee", "Standing knee", c => [sideIndexes(c.standing).hip, sideIndexes(c.standing).knee, sideIndexes(c.standing).ankle],
+                (l, c) => angle(l[sideIndexes(c.standing).hip], l[sideIndexes(c.standing).knee], l[sideIndexes(c.standing).ankle]),
+                165, 180, 25, 1.5, (v, c) => `Straighten your ${c.standing} standing leg.`),
+            rangeCheck("raisedKnee", "Raised knee", c => [sideIndexes(c.raised).hip, sideIndexes(c.raised).knee, sideIndexes(c.raised).ankle],
+                (l, c) => angle(l[sideIndexes(c.raised).hip], l[sideIndexes(c.raised).knee], l[sideIndexes(c.raised).ankle]),
+                45, 125, 30, 1.3, (v, c) => `Open your ${c.raised} knee outward.`)
+        ];
+    }
+    if (poseKey === "downward") {
+        return [
+            rangeCheck("arms", "Straight arms", [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST],
+                l => Math.min(angle(l[LM.LEFT_SHOULDER], l[LM.LEFT_ELBOW], l[LM.LEFT_WRIST]), angle(l[LM.RIGHT_SHOULDER], l[LM.RIGHT_ELBOW], l[LM.RIGHT_WRIST])),
+                155, 180, 25, 1.2, () => "Straighten both arms and press the floor away."),
+            rangeCheck("legs", "Straight legs", [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE],
+                l => Math.min(angle(l[LM.LEFT_HIP], l[LM.LEFT_KNEE], l[LM.LEFT_ANKLE]), angle(l[LM.RIGHT_HIP], l[LM.RIGHT_KNEE], l[LM.RIGHT_ANKLE])),
+                145, 180, 30, 1.1, () => "Lengthen and straighten your legs.")
+        ];
+    }
+    if (poseKey === "chair") {
+        return [
+            rangeCheck("leftKnee", "Left knee", [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE],
+                l => angle(l[LM.LEFT_HIP], l[LM.LEFT_KNEE], l[LM.LEFT_ANKLE]), 70, 110, 30, 1.3, () => "Adjust your left knee bend."),
+            rangeCheck("rightKnee", "Right knee", [LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE],
+                l => angle(l[LM.RIGHT_HIP], l[LM.RIGHT_KNEE], l[LM.RIGHT_ANKLE]), 70, 110, 30, 1.3, () => "Adjust your right knee bend.")
+        ];
+    }
+    return [];
+}
+
+function analysePose(landmarks) {
+    const context = selectedPose === "warrior2" ? getWarriorContext(landmarks) :
+                    selectedPose === "tree" ? getTreeContext(landmarks) : {};
+    const checks = getChecks(selectedPose, landmarks);
+    const jointScores = new Array(33).fill(null).map(() => ({ total: 0, weight: 0 }));
+    const results = [];
+    let weightedTotal = 0, totalWeight = 0;
+
+    for (const check of checks) {
+        const result = check.evaluate(landmarks, context);
+        weightedTotal += result.score * check.weight;
+        totalWeight += check.weight;
+
+        const points = typeof check.points === "function" ? check.points(context) : check.points;
+        for (const pt of points || []) {
+            if (jointScores[pt]) {
+                jointScores[pt].total += result.score * check.weight;
+                jointScores[pt].weight += check.weight;
+            }
+        }
+        results.push({ ...check, ...result });
+    }
+
+    const score = totalWeight ? weightedTotal / totalWeight : 0;
+    const jointAccuracy = jointScores.map(i => (!i.weight ? 0.8 : i.total / i.weight));
+    return { score, checks: results, jointAccuracy, context };
+}
+
+/* =========================================================
+   POSE DRAWING & DETECTION PIPELINE
+========================================================= */
+const REQUIRED_LANDMARKS = [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER, LM.LEFT_HIP, LM.RIGHT_HIP, LM.LEFT_KNEE, LM.RIGHT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_ANKLE];
+
+function visibilityOf(lm) {
+    if (!lm) return 0;
+    if (typeof lm.visibility === "number") return lm.visibility;
+    if (typeof lm.presence === "number") return lm.presence;
+    return 1;
+}
+
+function bodyConfidence(landmarks) {
+    if (!landmarks || landmarks.length < 33) return 0;
+    return REQUIRED_LANDMARKS.reduce((acc, idx) => acc + visibilityOf(landmarks[idx]), 0) / REQUIRED_LANDMARKS.length;
+}
+
+function bodyReady(landmarks) {
+    if (!landmarks) return false;
+    let count = 0;
+    for (const idx of REQUIRED_LANDMARKS) {
+        if (visibilityOf(landmarks[idx]) >= 0.3) count++;
+    }
+    return count >= 6;
+}
+
+function smoothPose(landmarks) {
+    if (!smoothLandmarks) {
+        smoothLandmarks = landmarks.map(l => ({ x: l.x, y: l.y, z: l.z, visibility: visibilityOf(l) }));
+        return smoothLandmarks;
+    }
+    const alpha = 0.35;
+    for (let i = 0; i < landmarks.length; i++) {
+        const cur = landmarks[i], prev = smoothLandmarks[i];
+        prev.x += (cur.x - prev.x) * alpha;
+        prev.y += (cur.y - prev.y) * alpha;
+        prev.z += (cur.z - prev.z) * alpha;
+        prev.visibility += (visibilityOf(cur) - prev.visibility) * alpha;
+    }
+    return smoothLandmarks;
+}
+
+function resizeCanvas(canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function mapPoint(lm, width, height) {
+    if (!lm) return null;
+    const sW = video.videoWidth || width, sH = video.videoHeight || height;
+    const scale = Math.max(width / sW, height / sH);
+    const rW = sW * scale, rH = sH * scale;
+    return {
+        x: lm.x * rW - (rW - width) / 2,
+        y: lm.y * rH - (rH - height) / 2
+    };
+}
+
+function drawPose(landmarks, analysis) {
+    const rect = poseCanvas.getBoundingClientRect();
+    const width = rect.width, height = rect.height;
+    const dpr = window.devicePixelRatio || 1;
+
+    poseCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    poseCtx.clearRect(0, 0, width, height);
+    if (!landmarks) return;
+
+    const points = landmarks.map(lm => mapPoint(lm, width, height));
+    const accuracy = analysis?.jointAccuracy || new Array(33).fill(0.8);
+
+    poseCtx.lineCap = "round";
+    poseCtx.lineJoin = "round";
+
+    for (const [a, b] of CONNECTIONS) {
+        const p1 = points[a], p2 = points[b];
+        if (!p1 || !p2 || visibilityOf(landmarks[a]) < 0.15 || visibilityOf(landmarks[b]) < 0.15) continue;
+
+        const score = Math.min(accuracy[a] ?? 0.8, accuracy[b] ?? 0.8);
+        poseCtx.strokeStyle = score >= 0.82 ? "#31e981" : score >= 0.62 ? "#f4c95d" : "#ff5c68";
+        poseCtx.lineWidth = 5;
+        poseCtx.beginPath();
+        poseCtx.moveTo(p1.x, p1.y);
+        poseCtx.lineTo(p2.x, p2.y);
+        poseCtx.stroke();
+    }
+
+    for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        if (!p || visibilityOf(landmarks[i]) < 0.20) continue;
+        const score = accuracy[i] ?? 0.8;
+        const color = score >= 0.82 ? "#31e981" : score >= 0.62 ? "#f4c95d" : "#ff5c68";
+
+        poseCtx.beginPath();
+        poseCtx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        poseCtx.fillStyle = color;
+        poseCtx.fill();
+
+        poseCtx.beginPath();
+        poseCtx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        poseCtx.strokeStyle = "rgba(255,255,255,.55)";
+        poseCtx.lineWidth = 1;
+        poseCtx.stroke();
+    }
+}
+
+/* =========================================================
+   UI CONTROLLERS
+========================================================= */
+function formatTime(s) {
+    s = Math.max(0, Math.floor(s));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function updateScoreUI(score) {
+    const rounded = Math.round(score * 100);
+    scoreNumber.textContent = Number.isFinite(rounded) ? rounded : "--";
+    const deg = clamp(rounded, 0, 100) * 3.6;
+    const color = rounded < 60 ? "#ff5c68" : rounded < 80 ? "#f4c95d" : "#31e981";
+
+    scoreRing.style.background = `conic-gradient(${color} ${deg}deg, #1a232d ${deg}deg)`;
+    scoreState.className = "score-state " + (rounded >= 85 ? "good" : rounded >= 65 ? "warning" : "bad");
+    scoreState.textContent = rounded >= 85 ? "Excellent alignment" : rounded >= 65 ? "Good — make small corrections" : "Needs adjustment";
+}
+
+function updateFeedback(analysis) {
+    if (!analysis) return;
+    const bad = [...analysis.checks].sort((a, b) => a.score - b.score).filter(i => i.score < 0.78);
+    feedbackList.innerHTML = "";
+
+    if (!bad.length) {
+        const item = document.createElement("div");
+        item.className = "feedback-item good";
+        item.textContent = "Great alignment. Keep breathing and hold the pose.";
+        feedbackList.appendChild(item);
+        feedbackTitle.textContent = "Pose looks strong";
+        feedbackMessage.textContent = "Keep your current position.";
+        feedbackIndicator.textContent = "✓";
+        return;
+    }
+
+    const display = bad.slice(0, 3);
+    for (const d of display) {
+        const item = document.createElement("div");
+        item.className = "feedback-item " + (d.score >= 0.62 ? "warning" : "");
+        item.textContent = d.feedback;
+        feedbackList.appendChild(item);
+    }
+
+    const first = display[0];
+    feedbackTitle.textContent = first.score < 0.62 ? "Correction needed" : "Small adjustment";
+    feedbackMessage.textContent = first.feedback;
+    feedbackIndicator.textContent = first.score < 0.62 ? "!" : "↗";
+}
+
+function updateCorrectionCount(analysis) {
+    const failing = new Set(analysis.checks.filter(c => c.score < 0.62).map(c => c.id));
+    for (const id of failing) {
+        if (!activeCorrections.has(id)) {
+            correctionCount++;
+            activeCorrections.add(id);
+        }
+    }
+    for (const id of [...activeCorrections]) {
+        if (!failing.has(id)) activeCorrections.delete(id);
+    }
+    correctionCountElement.textContent = correctionCount;
+}
+
+function updateHold(score, analysis) {
+    const ready = score >= 0.80 && analysis && analysis.checks.every(c => c.score >= 0.60);
+    const now = performance.now();
+
+    if (ready) {
+        if (!holdStartedAt) holdStartedAt = now;
+        currentHoldSeconds = (now - holdStartedAt) / 1000;
+        bestHoldSeconds = Math.max(bestHoldSeconds, currentHoldSeconds);
+    } else {
+        if (holdStartedAt) {
+            bestHoldSeconds = Math.max(bestHoldSeconds, (now - holdStartedAt) / 1000);
+        }
+        holdStartedAt = null;
+        currentHoldSeconds = 0;
+    }
+
+    holdTimeElement.textContent = formatTime(currentHoldSeconds);
+    bestHoldElement.textContent = formatTime(bestHoldSeconds);
+}
+
+function sampleSession(score) {
+    const now = performance.now();
+    if (now - lastStatsSample < 1000) return;
+    lastStatsSample = now;
+    sessionScores.push(score);
+    peakScore = Math.max(peakScore, score);
+}
+
+function updateCalibration(landmarks) {
+    const conf = bodyConfidence(landmarks);
+    confidenceValue.textContent = Math.round(conf * 100) + "%";
+    confidenceBar.style.width = Math.round(conf * 100) + "%";
+
+    if (!bodyReady(landmarks)) {
+        calibrationFrames = 0;
+        calibrationText.textContent = "Move back — show your full body";
+        cameraStatus.textContent = "Waiting for full body";
+        cameraTip.textContent = "Make sure your head, hips, knees and feet are visible.";
+        return false;
+    }
+
+    calibrationFrames++;
+    const progress = Math.min(100, Math.round((calibrationFrames / CALIBRATION_REQUIRED) * 100));
+    calibrationText.textContent = `Calibrating ${progress}%`;
+    cameraStatus.textContent = "Calibrating pose";
+
+    if (calibrationFrames >= CALIBRATION_REQUIRED) {
+        calibrationBox.style.display = "none";
+        calibrationText.textContent = "Tracking active";
+        cameraStatus.textContent = "Live tracking";
+        cameraTip.textContent = "Follow the corrections below while maintaining the pose.";
+        return true;
+    }
+    return false;
+}
+
+/* =========================================================
+   CAMERA & LIFECYCLE
+========================================================= */
+async function startCamera() {
+    hideError();
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+        showError("Camera access unavailable. Open on localhost or an HTTPS connection.");
+        return;
+    }
+
+    try {
+        showLoading("Requesting camera access...");
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { ideal: "user" } },
+            audio: false
+        });
+
+        video.srcObject = stream;
+        await new Promise(resolve => { video.onloadedmetadata = () => resolve(); });
+        await video.play();
+
+        landingScreen.classList.add("hidden");
+        practiceScreen.classList.remove("hidden");
+        cameraStatusPill.classList.add("live");
+        cameraStatusText.textContent = "Camera on";
+        cameraStatus.textContent = "Loading pose tracker...";
+
+        resizeCanvas(poseCanvas);
+        resizeThree();
+
+        await initialisePose();
+
+        running = true;
+        sessionStartedAt = Date.now();
+        hideLoading();
+        startDetectionLoop();
+
+    } catch (err) {
+        hideLoading();
+        console.error("Camera startup error:", err);
+        showError(err.message || "Failed to start camera or AI model.");
+    }
+}
+
+async function initialisePose() {
+    if (poseModel) return;
+    const PoseConstructor = window.Pose || (typeof Pose !== "undefined" ? Pose : null);
+    if (!PoseConstructor || window.__poseLibraryFailed) {
+        throw new Error("MediaPipe Pose library could not be loaded from CDN.");
+    }
+
+    showLoading("Initializing MediaPipe Pose...");
+    poseModel = new PoseConstructor({
+        locateFile: file => "https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/" + file
+    });
+
+    poseModel.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        minDetectionConfidence: 0.4,
+        minTrackingConfidence: 0.4
+    });
+
+    poseModel.onResults(handlePoseResults);
+    if (typeof poseModel.initialize === "function") {
+        await poseModel.initialize();
+    }
+
+    modelStatus.classList.add("live");
+    modelStatusText.textContent = "AI tracking";
+}
+
+async function startDetectionLoop() {
+    if (detecting) return;
+    detecting = true;
+
+    async function loop() {
+        if (!running) {
+            detecting = false;
+            return;
+        }
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0 && poseModel) {
+            try {
+                await poseModel.send({ image: video });
+            } catch (err) {
+                console.error("Inference error:", err);
+            }
+        }
+        animationFrame = requestAnimationFrame(loop);
+    }
+    loop();
+}
+
+function handlePoseResults(results) {
+    if (!running) return;
+    resizeCanvas(poseCanvas);
+
+    if (!results.poseLandmarks) {
+        drawPose(null, null);
+        confidenceValue.textContent = "0%";
+        confidenceBar.style.width = "0%";
+        cameraStatus.textContent = "No body detected";
+        scoreNumber.textContent = "--";
+        scoreState.textContent = "Waiting for pose";
+        return;
+    }
+
+    const landmarks = smoothPose(results.poseLandmarks);
+    const calibrated = updateCalibration(landmarks);
+
+    if (!calibrated) {
+        drawPose(landmarks, null);
+        return;
+    }
+
+    const analysis = analysePose(landmarks);
+    currentScore = analysis.score;
+
+    drawPose(landmarks, analysis);
+    updateScoreUI(currentScore);
+    updateFeedback(analysis);
+    updateCorrectionCount(analysis);
+    updateHold(currentScore, analysis);
+    sampleSession(currentScore);
+}
+
+function stopCamera() {
+    running = false;
+    detecting = false;
+    if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+    }
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+    video.srcObject = null;
+    cameraStatusPill.classList.remove("live");
+    cameraStatusText.textContent = "Camera off";
+    modelStatus.classList.remove("live");
+    modelStatusText.textContent = "AI ready";
+}
+
+function resetSession() {
+    calibrationFrames = 0;
+    smoothLandmarks = null;
+    currentScore = 0;
+    holdStartedAt = null;
+    currentHoldSeconds = 0;
+    bestHoldSeconds = 0;
+    sessionScores = [];
+    peakScore = 0;
+    correctionCount = 0;
+    activeCorrections.clear();
+
+    scoreNumber.textContent = "--";
+    scoreState.textContent = "Waiting for pose";
+    scoreState.className = "score-state";
+    scoreRing.style.background = "conic-gradient(#31e981 0deg, #1a232d 0deg)";
+    calibrationBox.style.display = "block";
+    calibrationText.textContent = "Stand inside the frame";
+
+    setThreePoseTarget(selectedPose);
+}
+
+function showSummary() {
+    const avg = sessionScores.length ? sessionScores.reduce((a, b) => a + b, 0) / sessionScores.length : 0;
+    const dur = sessionStartedAt ? (Date.now() - sessionStartedAt) / 1000 : 0;
+
+    summaryPose.textContent = POSES[selectedPose].name;
+    summaryScore.textContent = Math.round(avg * 100);
+    summaryBest.textContent = formatTime(bestHoldSeconds);
+    summaryCorrections.textContent = correctionCount;
+    summaryDuration.textContent = formatTime(dur);
+    summaryPeak.textContent = Math.round(peakScore * 100);
+
+    summaryModal.classList.remove("hidden");
+}
+
+function stopPractice() {
+    if (sessionStartedAt) {
+        if (holdStartedAt) {
+            bestHoldSeconds = Math.max(bestHoldSeconds, (performance.now() - holdStartedAt) / 1000);
+        }
+        showSummary();
+    }
+    stopCamera();
+}
+
+function showError(msg) {
+    errorMessage.textContent = msg;
+    errorBox.style.display = "block";
+    setTimeout(hideError, 8000);
+}
+function hideError() { errorBox.style.display = "none"; }
+function showLoading(txt) { loadingText.textContent = txt; loadingScreen.classList.remove("hidden"); }
+function hideLoading() { loadingScreen.classList.add("hidden"); }
+
+/* =========================================================
+   EVENTS
+========================================================= */
+document.querySelectorAll(".pose-card").forEach(card => {
+    card.addEventListener("click", () => {
+        if (running) return;
+        document.querySelectorAll(".pose-card").forEach(c => c.classList.remove("active"));
+        card.classList.add("active");
+        selectedPose = card.dataset.pose;
+        selectedPoseName.textContent = POSES[selectedPose].name;
+        scorePoseLabel.textContent = POSES[selectedPose].name;
+        setThreePoseTarget(selectedPose);
+    });
+});
+
+startButton.addEventListener("click", startCamera);
+stopButton.addEventListener("click", stopPractice);
+resetButton.addEventListener("click", resetSession);
+
+summaryRestart.addEventListener("click", () => {
+    summaryModal.classList.add("hidden");
+    resetSession();
+    startCamera();
+});
+
+summaryClose.addEventListener("click", () => {
+    summaryModal.classList.add("hidden");
+    practiceScreen.classList.add("hidden");
+    landingScreen.classList.remove("hidden");
+    sessionStartedAt = 0;
+});
+
+window.addEventListener("resize", () => {
+    resizeCanvas(poseCanvas);
+    resizeThree();
+});
+
+window.addEventListener("load", () => {
+    resizeCanvas(poseCanvas);
+    initThreeJS();
+    setThreePoseTarget(selectedPose, true);
+});
+
+window.addEventListener("beforeunload", () => {
+    stopCamera();
+});
+
+</script>
+</body>
+</html>
